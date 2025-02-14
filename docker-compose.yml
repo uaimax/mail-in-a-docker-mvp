@@ -1,0 +1,33 @@
+services:
+  mail:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: mailinabox-custom:latest
+    hostname: emailsrv
+    environment:
+      - PRIMARY_HOSTNAME=emailsrv.webmaxdigital.com
+      - DISABLE_SPAM_FILTER=FALSE
+      - DISABLE_DNS=TRUE
+      - WEBMAIL_ENABLED=TRUE
+    ports:
+      - "25:25"
+      - "80:80"
+      - "443:443"
+      - "587:587"
+      - "993:993"
+      - "995:995"
+    volumes:
+      - mail-data:/mailinabox
+    networks:
+      - dokploy-network
+    restart: always
+    cap_add:
+      - NET_ADMIN
+
+volumes:
+  mail-data:
+
+networks:
+  dokploy-network:
+    external: true
