@@ -13,7 +13,10 @@ RUN apt-get update && \
         git \
         lsb-release \
         systemctl \
-        ca-certificates && \
+        ca-certificates \
+        locales && \
+    # Configurar locale
+    locale-gen en_US.UTF-8 && \
     # Criar usuário e configurar na mesma camada
     useradd -m -s /bin/bash mailuser && \
     echo "mailuser ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers && \
@@ -23,6 +26,11 @@ RUN apt-get update && \
     # Limpar cache e arquivos temporários
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# Definir variáveis de ambiente para locale
+ENV LANG=en_US.UTF-8 \
+    LANGUAGE=en_US:en \
+    LC_ALL=en_US.UTF-8
 
 # Copiar e configurar entrypoint em uma única camada
 COPY --chmod=755 entrypoint.sh /usr/local/bin/
