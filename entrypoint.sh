@@ -1,5 +1,5 @@
 #!/bin/bash
-set -eo pipefail  # Faz o script falhar em caso de erros
+set -eo pipefail
 
 # Função para verificar variáveis de ambiente obrigatórias
 check_required_vars() {
@@ -20,15 +20,42 @@ check_required_vars() {
 
 # Função para iniciar serviços
 start_services() {
-    local services=("postfix" "dovecot" "opendkim" "nginx")
+    # Iniciar serviços usando o comando direto em vez de 'service'
+    echo "🔄 Iniciando serviços..."
     
-    for service in "${services[@]}"; do
-        echo "🔄 Iniciando $service..."
-        if ! service "$service" start; then
-            echo "❌ Falha ao iniciar $service"
-            exit 1
-        fi
-    done
+    # Postfix
+    if [ -f /usr/sbin/postfix ]; then
+        /usr/sbin/postfix start || {
+            echo "❌ Falha ao iniciar postfix"
+            return 1
+        }
+    fi
+    
+    # Dovecot
+    if [ -f /usr/sbin/dovecot ]; then
+        /usr/sbin/dovecot || {
+            echo "❌ Falha ao iniciar dovecot"
+            return 1
+        }
+    fi
+    
+    # OpenDKIM
+    if [ -f /usr/sbin/opendkim ]; then
+        /usr/sbin/opendkim || {
+            echo "❌ Falha ao iniciar opendkim"
+            return 1
+        }
+    fi
+    
+    # Nginx
+    if [ -f /usr/sbin/nginx ]; then
+        /usr/sbin/nginx || {
+            echo "❌ Falha ao iniciar nginx"
+            return 1
+        }
+    fi
+    
+    return 0
 }
 
 # Função principal
@@ -44,7 +71,7 @@ main() {
         export TLS_FLAVOR=${TLS_FLAVOR:-letsencrypt}
         
         # Executa a instalação
-        if ! sudo -E /home/mailuser/setup.sh; then
+        if ! sudo -E bash /home/mailuser/setup.sh; then
             echo "❌ Falha na instalação do Mail-in-a-Box"
             exit 1
         fi
@@ -56,7 +83,10 @@ main() {
     fi
     
     # Inicia os serviços
-    start_services
+    if ! start_services; then
+        echo "❌ Falha ao iniciar alguns serviços"
+        exit 1
+    fi
     
     echo "✅ Todos os serviços iniciados com sucesso"
     
