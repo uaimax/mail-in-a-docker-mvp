@@ -1,39 +1,36 @@
-FROM ubuntu:22.04
+# Usar alpine como base ao invés de ubuntu para uma imagem mais leve
+FROM alpine:3.19
 
-# Definir ambiente como não interativo
-ARG DEBIAN_FRONTEND=noninteractive
+# Combinar comandos RUN para reduzir camadas e usar cache de maneira eficiente
+RUN apk update && \
+    apk add --no-cache \
+        curl \
+        sudo \
+        unzip \
+        ufw \
+        fail2ban \
+        git \
+        bash && \
+    # Criar usuário e configurar sudo em uma única camada
+    adduser -D -s /bin/bash mailuser && \
+    echo "mailuser ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers && \
+    # Criar diretório e ajustar permissões na mesma camada
+    mkdir -p /var/lib/mailinabox && \
+    chown -R mailuser:mailuser /var/lib/mailinabox && \
+    # Limpar cache do apk para reduzir tamanho
+    rm -rf /var/cache/apk/*
 
-# Atualizar pacotes e instalar dependências básicas
-RUN apt update && apt -y upgrade && \
-    apt -y install curl sudo unzip ufw fail2ban git && \
-    apt clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+# Copiar entrypoint e configurar permissões em uma única camada
+COPY --chmod=755 entrypoint.sh /usr/local/bin/
 
-# Criar usuário para rodar o Mail-in-a-Box
-RUN useradd -m -s /bin/bash mailuser && echo "mailuser ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
-
-# Copiar script de entrada antes de trocar o usuário
-COPY entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh
-
-# Trocar para o usuário mailuser
+# Configurar download do setup em uma única camada como mailuser
 USER mailuser
 WORKDIR /home/mailuser
+RUN curl -sSL https://mailinabox.email/setup.sh -o setup.sh && \
+    chmod +x setup.sh
 
-# Baixar o instalador do Mail-in-a-Box
-RUN curl -sSL https://mailinabox.email/setup.sh -o setup.sh && chmod +x setup.sh
-
-# Definir variáveis que serão passadas na execução
-ENV PRIMARY_HOSTNAME=""
-ENV ADMIN_EMAIL=""
-ENV ADMIN_PASSWORD=""
-ENV DISABLE_DNS="TRUE"
-ENV TLS_FLAVOR="letsencrypt"
-
-# Expor portas necessárias
-EXPOSE 25 53 80 443 587 993 995
-
-# Volumes para persistência
-VOLUME ["/home/mailuser", "/var/lib/mailinabox"]
-
-# Definir entrypoint
+# Configurações finais
+USER root
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+EXPOSE 25 53 80 443 587 993 995
+VOLUME ["/home/mailuser", "/var/lib/mailinabox"]
