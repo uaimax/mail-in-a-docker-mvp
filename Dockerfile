@@ -2,11 +2,6 @@ FROM ubuntu:22.04
 
 # Definir ambiente como não interativo
 ARG DEBIAN_FRONTEND=noninteractive
-ENV PRIMARY_HOSTNAME=${PRIMARY_HOSTNAME}
-ENV ADMIN_EMAIL=${ADMIN_EMAIL}
-ENV ADMIN_PASSWORD=${ADMIN_PASSWORD}
-ENV DISABLE_DNS=${DISABLE_DNS}
-ENV TLS_FLAVOR=${TLS_FLAVOR}
 
 # Atualizar pacotes e instalar dependências básicas
 RUN apt update && apt -y upgrade && \
@@ -16,14 +11,23 @@ RUN apt update && apt -y upgrade && \
 # Criar usuário para rodar o Mail-in-a-Box
 RUN useradd -m -s /bin/bash mailuser && echo "mailuser ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
-# Baixar o instalador do Mail-in-a-Box
+# Copiar script de entrada antes de trocar o usuário
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+# Trocar para o usuário mailuser
 USER mailuser
 WORKDIR /home/mailuser
+
+# Baixar o instalador do Mail-in-a-Box
 RUN curl -sSL https://mailinabox.email/setup.sh -o setup.sh && chmod +x setup.sh
 
-# Copiar script de entrada
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+# Definir variáveis que serão passadas na execução
+ENV PRIMARY_HOSTNAME=""
+ENV ADMIN_EMAIL=""
+ENV ADMIN_PASSWORD=""
+ENV DISABLE_DNS="TRUE"
+ENV TLS_FLAVOR="letsencrypt"
 
 # Expor portas necessárias
 EXPOSE 25 53 80 443 587 993 995
@@ -32,4 +36,4 @@ EXPOSE 25 53 80 443 587 993 995
 VOLUME ["/home/mailuser", "/var/lib/mailinabox"]
 
 # Definir entrypoint
-ENTRYPOINT ["/entrypoint.sh"]
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
